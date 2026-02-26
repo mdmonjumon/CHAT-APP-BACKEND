@@ -11,8 +11,6 @@ const signupUserIntoDB = async (userInfo) => {
       runValidators: true,
     },
   );
-
-  console.log(result);
   return result;
 };
 

@@ -1,15 +1,20 @@
 import express from "express";
 import { AuthRoutes } from "../modules/auth/auth.routes.js";
 import verifyToken from "../middleware/verifyToken.js";
+import { UserRoute } from "../modules/user/user.routes.js";
 
 const router = express.Router();
 
-router.use(verifyToken)
+router.use(verifyToken);
 
 const modulesRoutes = [
   {
     path: "/auth",
     route: AuthRoutes,
+  },
+  {
+    path: "/allUsers",
+    route: UserRoute,
   },
 ];
 

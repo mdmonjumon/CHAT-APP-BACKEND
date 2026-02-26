@@ -12,7 +12,7 @@ const signupUserIntoDB = async (req, res) => {
       profilePic: profilePic || "",
     };
     const result = await authService.signupUserIntoDB(userInfo);
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       data: result,
       message: "User create success",
