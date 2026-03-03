@@ -12,10 +12,13 @@ const conversationSchema = new mongoose.Schema(
     isGroupChat: { type: Boolean, default: false },
     chatName: { type: String, trim: true },
     groupAdmin: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    groupProfilePic: { type: String, default: "" },
     lastMessage: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Message",
     },
+
+    deletedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   },
   { timestamps: true },
 );
