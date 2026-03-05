@@ -1,4 +1,5 @@
 import admin from "../config/firebase.js";
+import User from "../models/User.js";
 
 const verifyToken = async (req, res, next) => {
   if (!req.headers.authorization) {
@@ -12,7 +13,16 @@ const verifyToken = async (req, res, next) => {
 
   try {
     const decodedToken = await admin.auth().verifyIdToken(token);
-    req.user = decodedToken;
+    
+
+
+    let mongoUser = await User.findOne({ firebaseUid: decodedToken.uid })
+
+    if (mongoUser) {
+        req.user = mongoUser; 
+    } else {
+        req.user = decodedToken;
+    }
 
     next();
   } catch (error) {
