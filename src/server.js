@@ -18,6 +18,7 @@ const io = new Server(httpServer, {
   },
 });
 
+const onlineUsers = new Map();
 // সকেট কানেকশন হ্যান্ডেল করা
 io.on("connection", (socket) => {
   console.log("user connected", socket.id);
@@ -28,8 +29,30 @@ io.on("connection", (socket) => {
     console.log(`User joined room: ${conversationId}`);
   });
 
+  socket.on("setup", (userId) => {
+    if (!userId) return;
+
+    socket.join(userId);
+    onlineUsers.set(userId, socket.id);
+
+    // অনলাইন ইউজারদের আইডি অ্যারে হিসেবে পাঠানো
+    io.emit("get_online_users", Array.from(onlineUsers.keys()));
+    console.log(`✅ User ${userId} is online`);
+  });
+
   socket.on("disconnect", () => {
-    console.log("User disconnected");
+    let disconnectedUserId;
+    for (let [userId, socketId] of onlineUsers.entries()) {
+      if (socketId === socket.id) {
+        disconnectedUserId = userId;
+        break;
+      }
+    }
+
+    if (disconnectedUserId) {
+      onlineUsers.delete(disconnectedUserId);
+      io.emit("get_online_users", Array.from(onlineUsers.keys()));
+    }
   });
 });
 
