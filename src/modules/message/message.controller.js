@@ -1,7 +1,7 @@
-
 import { io } from "../../server.js";
 import { messageServices } from "./message.services.js";
 
+// one to one conversation
 const getOrCreateConversation = async (req, res) => {
   try {
     const { receiverId } = req?.body;
@@ -17,6 +17,30 @@ const getOrCreateConversation = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: "Error fetching conversation" });
+  }
+};
+
+// create group conversation
+const createGroup = async (req, res) => {
+  try {
+    const { chatName, participants } = req.body;
+    const adminId = req.user._id;
+
+    const result = await messageServices.createGroup({
+      chatName,
+      participants,
+      adminId,
+    });
+
+    res.status(201).json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
 
@@ -78,4 +102,5 @@ export const messageController = {
   getOrCreateConversation,
   sendMessage,
   getMessage,
+  createGroup,
 };

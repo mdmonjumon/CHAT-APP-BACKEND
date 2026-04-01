@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import Conversation from "../../models/Conversation.js";
 import Message from "../../models/Message.js";
 
+// create one to one conversation
 const getOrCreateConversation = async (senderId, receiverId) => {
   // ১. চেক করা এই দুজনের মধ্যে আগে কোনো রুম হয়েছে কি না
   let conversation = await Conversation.findOne({
@@ -23,9 +24,44 @@ const getOrCreateConversation = async (senderId, receiverId) => {
   );
 };
 
+// create group conversation
+const createGroup = async (groupData) => {
+  try {
+    const { chatName, participants, adminId } = groupData;
+
+    // ১. সব আইডিকে ObjectId-এ কনভার্ট করা (যাতে ফরম্যাট একই থাকে)
+    const formattedParticipants = participants.map(
+      (id) => new mongoose.Types.ObjectId(id),
+    );
+
+    // ২. এডমিনকেও ObjectId হিসেবে যোগ করা
+    const adminObjectId = new mongoose.Types.ObjectId(adminId);
+
+    // ৩. ডুপ্লিকেট রিমুভ করা (Set ব্যবহার করে)
+    const uniqueParticipants = [
+      ...new Set([
+        ...formattedParticipants.map((id) => id.toString()),
+        adminObjectId.toString(),
+      ]),
+    ].map((id) => new mongoose.Types.ObjectId(id));
+
+    const newGroupData = {
+      participants: uniqueParticipants,
+      isGroupChat: true,
+      chatName,
+      groupAdmin: adminObjectId,
+    };
+
+    const result = await Conversation.create(newGroupData);
+    return await result.populate("participants", "fullName profilePic");
+  } catch (error) {
+    console.error("Database Error in createGroupService:", error);
+    throw new Error("Failed to create group. Please check your data.");
+  }
+};
+
 const sendMessage = async (payload) => {
   const { text, senderId, conversationId } = payload;
-
 
   // ১. সেশন শুরু করা
   const session = await mongoose.startSession();
@@ -66,7 +102,10 @@ const sendMessage = async (payload) => {
     await session.commitTransaction();
     session.endSession();
 
-    return await newMessage.populate("senderId", "fullName profilePic firebaseUid");
+    return await newMessage.populate(
+      "senderId",
+      "fullName profilePic firebaseUid",
+    );
   } catch (error) {
     // যদি কোনো একটি ধাপে এরর হয়, তবে পুরো কাজ বাতিল (Rollback) হবে
     await session.abortTransaction();
@@ -87,4 +126,5 @@ export const messageServices = {
   getOrCreateConversation,
   sendMessage,
   getMessage,
+  createGroup,
 };
