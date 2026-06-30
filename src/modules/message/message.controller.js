@@ -117,10 +117,39 @@ const getUserGroups = async (req, res) => {
   }
 };
 
+const updateGroup = async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const { chatName, groupProfilePic } = req.body;
+    const userId = req?.user?._id;
+
+    const updateData = {};
+    if (chatName) updateData.chatName = chatName;
+    if (groupProfilePic !== undefined) updateData.groupProfilePic = groupProfilePic;
+
+    const result = await messageServices.updateGroup(conversationId, userId, updateData);
+
+    // Socket broadcast update (or simply success response)
+    // We can emit a socket update so all connected users receive the name/pic change
+    io.to(conversationId).emit("group_updated", result);
+
+    res.status(200).json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 export const messageController = {
   getOrCreateConversation,
   sendMessage,
   getMessage,
   createGroup,
   getUserGroups,
+  updateGroup,
 };

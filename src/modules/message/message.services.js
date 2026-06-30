@@ -143,10 +143,31 @@ const getUserGroups = async (userId) => {
   return groups;
 };
 
+const updateGroup = async (conversationId, userId, updateData) => {
+  const conversation = await Conversation.findOne({
+    _id: conversationId,
+    participants: userId,
+    isGroupChat: true,
+  });
+
+  if (!conversation) {
+    throw new Error("Group chat not found or access denied!");
+  }
+
+  const result = await Conversation.findByIdAndUpdate(
+    conversationId,
+    updateData,
+    { new: true }
+  ).populate("participants", "fullName profilePic");
+
+  return result;
+};
+
 export const messageServices = {
   getOrCreateConversation,
   sendMessage,
   getMessage,
   createGroup,
   getUserGroups,
+  updateGroup,
 };
