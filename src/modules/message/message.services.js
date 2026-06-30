@@ -163,6 +163,36 @@ const updateGroup = async (conversationId, userId, updateData) => {
   return result;
 };
 
+const makeAdmin = async (conversationId, adminId, newAdminId) => {
+  // Find conversation and ensure requesting user is the current admin
+  const conversation = await Conversation.findOne({
+    _id: conversationId,
+    groupAdmin: adminId,
+    isGroupChat: true,
+  });
+
+  if (!conversation) {
+    throw new Error("Group chat not found or you are not the group admin!");
+  }
+
+  // Ensure new admin is a participant
+  const isParticipant = conversation.participants.some(
+    (pId) => pId.toString() === newAdminId.toString()
+  );
+
+  if (!isParticipant) {
+    throw new Error("New admin must be a participant of the group!");
+  }
+
+  const result = await Conversation.findByIdAndUpdate(
+    conversationId,
+    { groupAdmin: new mongoose.Types.ObjectId(newAdminId) },
+    { new: true }
+  ).populate("participants", "fullName profilePic");
+
+  return result;
+};
+
 export const messageServices = {
   getOrCreateConversation,
   sendMessage,
@@ -170,4 +200,5 @@ export const messageServices = {
   createGroup,
   getUserGroups,
   updateGroup,
+  makeAdmin,
 };

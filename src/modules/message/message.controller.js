@@ -145,6 +145,34 @@ const updateGroup = async (req, res) => {
   }
 };
 
+const makeAdmin = async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const { newAdminId } = req.body;
+    const adminId = req?.user?._id;
+
+    if (!newAdminId) {
+      return res.status(400).json({ success: false, message: "New admin user ID is required" });
+    }
+
+    const result = await messageServices.makeAdmin(conversationId, adminId, newAdminId);
+
+    // Socket broadcast update to update frontend layouts
+    io.to(conversationId).emit("group_updated", result);
+
+    res.status(200).json({
+      success: true,
+      data: result,
+      message: "Admin role transferred successfully",
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 export const messageController = {
   getOrCreateConversation,
   sendMessage,
@@ -152,4 +180,5 @@ export const messageController = {
   createGroup,
   getUserGroups,
   updateGroup,
+  makeAdmin,
 };
