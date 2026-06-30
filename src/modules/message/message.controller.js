@@ -46,16 +46,19 @@ const createGroup = async (req, res) => {
 
 const sendMessage = async (req, res) => {
   try {
-    const { message: text, conversationId } = req.body;
+    const { message: text, conversationId, messageType, image, fileUrl } = req.body;
     const senderId = req?.user?._id;
 
-    if (!text || !conversationId) {
+    if ((!text && !image && !fileUrl) || !conversationId) {
       return res.status(400).json({ error: "Invalid message data" });
     }
     const result = await messageServices.sendMessage({
       text,
       conversationId,
       senderId,
+      messageType,
+      image,
+      fileUrl,
     });
 
     // SOCKET.IO
@@ -98,9 +101,26 @@ const getMessage = async (req, res) => {
   }
 };
 
+const getUserGroups = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const groups = await messageServices.getUserGroups(userId);
+    res.status(200).json({
+      success: true,
+      data: groups,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 export const messageController = {
   getOrCreateConversation,
   sendMessage,
   getMessage,
   createGroup,
+  getUserGroups,
 };

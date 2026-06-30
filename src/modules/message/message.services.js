@@ -12,7 +12,7 @@ const getOrCreateConversation = async (senderId, receiverId) => {
 
   // ২. যদি না থাকে, তবে নতুন রুম তৈরি করা
   if (!conversation) {
-    conversation = Conversation.create({
+    conversation = await Conversation.create({
       participants: [senderId, receiverId],
     });
   }
@@ -61,7 +61,7 @@ const createGroup = async (groupData) => {
 };
 
 const sendMessage = async (payload) => {
-  const { text, senderId, conversationId } = payload;
+  const { text, senderId, conversationId, messageType, image, fileUrl } = payload;
 
   // ১. সেশন শুরু করা
   const session = await mongoose.startSession();
@@ -85,6 +85,9 @@ const sendMessage = async (payload) => {
           conversationId,
           senderId,
           text,
+          messageType: messageType || "text",
+          image,
+          fileUrl,
           readBy: [senderId],
         },
       ],
@@ -122,9 +125,28 @@ const getMessage = async (conversationId) => {
   return messages;
 };
 
+const getUserGroups = async (userId) => {
+  const groups = await Conversation.find({
+    participants: userId,
+    isGroupChat: true,
+  })
+    .populate("participants", "fullName profilePic firebaseUid email isOnline")
+    .populate({
+      path: "lastMessage",
+      populate: {
+        path: "senderId",
+        select: "fullName profilePic",
+      },
+    })
+    .sort({ updatedAt: -1 });
+
+  return groups;
+};
+
 export const messageServices = {
   getOrCreateConversation,
   sendMessage,
   getMessage,
   createGroup,
+  getUserGroups,
 };
