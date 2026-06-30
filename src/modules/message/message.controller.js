@@ -79,6 +79,7 @@ const sendMessage = async (req, res) => {
 const getMessage = async (req, res) => {
   try {
     const { conversationId } = req.params;
+    const { limit, before } = req.query;
 
     // চেক করা আইডি পাঠানো হয়েছে কি না
     if (!conversationId) {
@@ -87,7 +88,7 @@ const getMessage = async (req, res) => {
         message: "Conversation ID is required",
       });
     }
-    const messages = await messageServices.getMessage(conversationId);
+    const messages = await messageServices.getMessage(conversationId, limit, before);
     res.status(200).json({
       success: true,
       count: messages.length,
@@ -173,6 +174,61 @@ const makeAdmin = async (req, res) => {
   }
 };
 
+const markAsRead = async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const userId = req?.user?._id;
+
+    await messageServices.markAsRead(conversationId, userId);
+
+    // Broadcast messages_read event to the room
+    io.to(conversationId).emit("messages_read", { conversationId, userId });
+
+    res.status(200).json({
+      success: true,
+      message: "Messages marked as read",
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+const updateGroupMembers = async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const { targetUserId, action } = req.body; // action is 'add' or 'remove'
+    const adminId = req?.user?._id;
+
+    if (!targetUserId || !action) {
+      return res.status(400).json({ success: false, message: "targetUserId and action are required" });
+    }
+
+    const { conversation, systemMessage } = await messageServices.updateGroupMembers(
+      conversationId,
+      adminId,
+      targetUserId,
+      action
+    );
+
+    // Broadcast update events to group chat
+    io.to(conversationId).emit("group_updated", conversation);
+    io.to(conversationId).emit("receive_message", systemMessage);
+
+    res.status(200).json({
+      success: true,
+      data: conversation,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 export const messageController = {
   getOrCreateConversation,
   sendMessage,
@@ -181,4 +237,6 @@ export const messageController = {
   getUserGroups,
   updateGroup,
   makeAdmin,
+  markAsRead,
+  updateGroupMembers,
 };

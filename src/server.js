@@ -29,6 +29,15 @@ io.on("connection", (socket) => {
     console.log(`User joined room: ${conversationId}`);
   });
 
+  // টাইপিং ইন্ডিকেটর হ্যান্ডেল করা
+  socket.on("typing", ({ conversationId, userId, fullName }) => {
+    socket.to(conversationId).emit("user_typing", { conversationId, userId, fullName });
+  });
+
+  socket.on("stop_typing", ({ conversationId, userId }) => {
+    socket.to(conversationId).emit("user_stop_typing", { conversationId, userId });
+  });
+
   socket.on("setup", (userId) => {
     if (!userId) return;
 

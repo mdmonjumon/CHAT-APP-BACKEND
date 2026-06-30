@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import Conversation from "../../models/Conversation.js";
 import Message from "../../models/Message.js";
+import User from "../../models/User.js";
 
 // create one to one conversation
 const getOrCreateConversation = async (senderId, receiverId) => {
@@ -101,7 +102,7 @@ const sendMessage = async (payload) => {
       { session },
     );
 
-    // ৫. সবকিছু ঠিক থাকলে ডাটাবেসে পার্মানেন্টলি সেভ করা
+    // ৫.  ঠিক থাকলে ডাটাবেসে পার্মানেন্টলি সেভ করা
     await session.commitTransaction();
     session.endSession();
 
@@ -117,12 +118,18 @@ const sendMessage = async (payload) => {
   }
 };
 
-const getMessage = async (conversationId) => {
-  const messages = await Message.find({ conversationId })
-    .populate("senderId", "fullName profilePic email firebaseUid")
-    .sort({ createdAt: 1 });
+const getMessage = async (conversationId, limit = 30, before = null) => {
+  const query = { conversationId };
+  if (before) {
+    query.createdAt = { $lt: new Date(before) };
+  }
 
-  return messages;
+  const messages = await Message.find(query)
+    .populate("senderId", "fullName profilePic email firebaseUid")
+    .sort({ createdAt: -1 })
+    .limit(Number(limit));
+
+  return messages.reverse();
 };
 
 const getUserGroups = async (userId) => {
@@ -193,6 +200,78 @@ const makeAdmin = async (conversationId, adminId, newAdminId) => {
   return result;
 };
 
+const markAsRead = async (conversationId, userId) => {
+  const result = await Message.updateMany(
+    {
+      conversationId,
+      senderId: { $ne: userId },
+      readBy: { $ne: userId },
+    },
+    {
+      $addToSet: { readBy: userId },
+    }
+  );
+  return result;
+};
+
+const updateGroupMembers = async (conversationId, adminId, targetUserId, action) => {
+  // Check if conversation exists and requester is the admin
+  const conversation = await Conversation.findOne({
+    _id: conversationId,
+    groupAdmin: adminId,
+    isGroupChat: true,
+  });
+
+  if (!conversation) {
+    throw new Error("Group chat not found or you are not the group admin!");
+  }
+
+  const targetObjectId = new mongoose.Types.ObjectId(targetUserId);
+
+  let updateQuery = {};
+  if (action === "add") {
+    updateQuery = { $addToSet: { participants: targetObjectId } };
+  } else if (action === "remove") {
+    // Cannot remove the admin themselves
+    if (conversation.groupAdmin.toString() === targetUserId.toString()) {
+      throw new Error("Cannot remove the admin from the group. Transfer admin first.");
+    }
+    updateQuery = { $pull: { participants: targetObjectId } };
+  } else {
+    throw new Error("Invalid action. Must be 'add' or 'remove'.");
+  }
+
+  const result = await Conversation.findByIdAndUpdate(
+    conversationId,
+    updateQuery,
+    { new: true }
+  ).populate("participants", "fullName profilePic firebaseUid email");
+
+  // Create a system message logging the action
+  const requester = await User.findById(adminId);
+  const targetUser = await User.findById(targetUserId);
+  const actionText = action === "add" 
+    ? `${requester.fullName} added ${targetUser.fullName} to the group` 
+    : `${requester.fullName} removed ${targetUser.fullName} from the group`;
+
+  const [systemMessage] = await Message.create([
+    {
+      conversationId,
+      senderId: adminId,
+      text: actionText,
+      messageType: "system",
+      readBy: [adminId],
+    }
+  ]);
+
+  const populatedSystemMessage = await systemMessage.populate(
+    "senderId",
+    "fullName profilePic firebaseUid"
+  );
+
+  return { conversation: result, systemMessage: populatedSystemMessage };
+};
+
 export const messageServices = {
   getOrCreateConversation,
   sendMessage,
@@ -201,4 +280,6 @@ export const messageServices = {
   getUserGroups,
   updateGroup,
   makeAdmin,
+  markAsRead,
+  updateGroupMembers,
 };
