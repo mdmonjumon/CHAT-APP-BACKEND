@@ -18,6 +18,7 @@ const io = new Server(httpServer, {
     origin: config.client_link,
     credentials: true,
   },
+  transports: ["websocket"],
 });
 
 const onlineUsers = new Map();
