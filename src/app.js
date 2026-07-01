@@ -2,13 +2,14 @@ import express from "express";
 import router from "./routes/index.js";
 import cors from "cors";
 import dotenv from "dotenv";
+import config from "./config/env.js";
 
 dotenv.config();
 const app = express();
 
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: config.client_link,
     credentials: true,
   }),
 );
