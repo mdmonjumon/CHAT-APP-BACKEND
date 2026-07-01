@@ -80,6 +80,7 @@ const getMessage = async (req, res) => {
   try {
     const { conversationId } = req.params;
     const { limit, before } = req.query;
+    const userId = req?.user?._id;
 
     // চেক করা আইডি পাঠানো হয়েছে কি না
     if (!conversationId) {
@@ -88,16 +89,17 @@ const getMessage = async (req, res) => {
         message: "Conversation ID is required",
       });
     }
-    const messages = await messageServices.getMessage(conversationId, limit, before);
+    const messages = await messageServices.getMessage(conversationId, userId, limit, before);
     res.status(200).json({
       success: true,
       count: messages.length,
       data: messages,
     });
   } catch (error) {
-    res.status(500).json({
+    const isAccessDenied = error.message && error.message.includes("access denied");
+    res.status(isAccessDenied ? 403 : 500).json({
       success: false,
-      message: "Internal server error",
+      message: isAccessDenied ? "Access denied: you are not a participant of this conversation." : "Internal server error",
     });
   }
 };

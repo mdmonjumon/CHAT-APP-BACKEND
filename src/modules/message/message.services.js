@@ -54,7 +54,7 @@ const createGroup = async (groupData) => {
     };
 
     const result = await Conversation.create(newGroupData);
-    return await result.populate("participants", "fullName profilePic");
+    return await result.populate("participants", "fullName profilePic firebaseUid email");
   } catch (error) {
     console.error("Database Error in createGroupService:", error);
     throw new Error("Failed to create group. Please check your data.");
@@ -118,7 +118,16 @@ const sendMessage = async (payload) => {
   }
 };
 
-const getMessage = async (conversationId, limit = 30, before = null) => {
+const getMessage = async (conversationId, userId, limit = 30, before = null) => {
+  const conversation = await Conversation.findOne({
+    _id: conversationId,
+    participants: userId,
+  });
+
+  if (!conversation) {
+    throw new Error("Conversation not found or access denied!");
+  }
+
   const query = { conversationId };
   if (before) {
     query.createdAt = { $lt: new Date(before) };
@@ -165,7 +174,7 @@ const updateGroup = async (conversationId, userId, updateData) => {
     conversationId,
     updateData,
     { new: true }
-  ).populate("participants", "fullName profilePic");
+  ).populate("participants", "fullName profilePic firebaseUid email");
 
   return result;
 };
@@ -201,6 +210,15 @@ const makeAdmin = async (conversationId, adminId, newAdminId) => {
 };
 
 const markAsRead = async (conversationId, userId) => {
+  const conversation = await Conversation.findOne({
+    _id: conversationId,
+    participants: userId,
+  });
+
+  if (!conversation) {
+    throw new Error("Conversation not found or access denied!");
+  }
+
   const result = await Message.updateMany(
     {
       conversationId,
